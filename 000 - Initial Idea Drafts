@@ -1,0 +1,508 @@
+Globals:
+	timeDisplay		 - stores temporary time while typing, gets cleared upon confirmation/cancellation/clearing, stored as hhmm or ----, indexed from 1 to 4
+	hh 				 - stores indices for hhValues
+	mm 				 - stores indices for mmValues
+	AM_PM 			 - stores indices for AM_PMValues
+	timerStatus		 - 
+	statusDisp		 - 
+	activeWeeks		 - stores indices for weekList
+
+*All local counterparts will be stored as <name>L
+
+Layout:
+
+Status: Active - 9:45 AM for 45 minutes on Mon,Tue,Thu
+-----------------------------------------
+Days:						Mon,Tue,Thu
+-----------------------------------------	
+		Mon		Tue		Wed		Thu
+			Fri		Sat		Sun
+-----------------------------------------
+Time:        					--:--
+-----------------------------------------
+			1		2		3
+
+			4		5		6
+
+			7		8		9
+
+			AM 		0	   PM
+
+			  Clear	    OK
+-----------------------------------------
+Duration:						45 mins
+-----------------------------------------
+
+-----------------------------------------
+		5" 		10"		15" 	30" 
+		45" 	60" 	90" 	120"
+-----------------------------------------
+	Enable Timer 		Disable Timer
+				Reset Timer
+-----------------------------------------
+
+
+Button Functions:
+
+A. Mon-Tue-Wed-Thu-Fri-Sat-Sun, e.g. Monday
+
+
+/// Old Code
+	local str = fibaro:getGlobalValue("Timer")
+	local letter = str:sub(2,2)
+	letter = 1 - (letter % 2)
+	local str2 = string.format("%s%s%s%s%s%s%s",str:sub(1,1),letter,str:sub(3,3),str:sub(4,4),str:sub(5,5),str:sub(6,6),str:sub(7,7))
+	fibaro:setGlobal('Timer',str2)
+	fibaro:debug(str2)
+///
+
+/// New code starts here
+	local thisDevice = fibaro:getSelfId()
+	local weekDayNumber = 4
+	local activeWeeks = fibaro:getGlobalValue("activeWeeks")
+	local dayStatus = 1 - (activeWeeks:sub(weekDayNumber,weekDayNumber) % 2)
+	local activeWeeksTemp = ""
+	for i = 1,7,1 do
+		if (i ~= weekDayNumber) then
+			activeWeeksTemp = activeWeeksTemp..activeWeeks:sub(i,i)
+		else
+			activeWeeksTemp = activeWeeksTemp..dayStatus
+		end
+	end
+
+	activeWeeks = activeWeeksTemp
+	fibaro:setGlobal('activeWeeks',activeWeeks)
+
+	local weekList = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"}
+	local weekDisplay = ""
+	local weekDisplayIndex = 1
+
+	for i = 1,7,1 do									-- Check if 'i' needs to be initialized with "local"
+		if (activeWeeks:sub(i,i) == "1") then
+			if (weekDisplayIndex > 1) then
+				weekDisplay = weekDisplay .. ", "
+			end
+			weekDisplay = weekDisplay .. weekList[i]
+			weekDisplayIndex = weekDisplayIndex + 1
+		end
+	end
+
+	fibaro:call(thisDevice,"setProperty","ui.Days.value",weekDisplay)
+///
+
+B. Buttons 0-9, e.g. 5
+
+local thisDevice = fibaro:getSelfId()
+local buttonPress = 1
+local timeDisplay = fibaro:getGlobalValue("timeDisplay")
+local timeDisplayTemp = ""
+
+timeDisplayTemp = string.format("%s%s%s%s",timeDisplay:sub(2,2),timeDisplay:sub(3,3),timeDisplay:sub(4,4),buttonPress)
+timeDisplay = timeDisplayTemp
+fibaro:setGlobal('timeDisplay',timeDisplay)
+
+local fullTimeDisplay = ""
+
+local AM_PMValues = {}
+AM_PMValues["0"] = ""
+AM_PMValues["AM"] = "AM"
+AM_PMValues["PM"] = "PM"
+
+fullTimeDisplay = string.format("%s%s%s%s%s",timeDisplay:sub(1,2),":",timeDisplay:sub(3,4)," ",AM_PMValues[fibaro:getGlobalValue("AM_PM")])
+fibaro:call(thisDevice,"setProperty","ui.timeDisplay.value",fullTimeDisplay)
+
+-----------------------------------------------------
+
+	local timeDisplay = {}
+	for i = 1,4,1 do
+		timeDisplay[i] = timeDisplayString.sub(i,i)
+	end
+
+	local fullTimeDisplay = ""
+
+	local AM_PMValues = {}
+	AM_PMValues[0] = ""
+	AM_PMValues[1] = "AM"
+	AM_PMValues[2] = "PM"
+
+	timeDisplayString = string.format("%s%s%s%s",timeDisplayString,timeDisplay[2],time)
+	fibaro:setGlobal('timeDisplay',timeDisplay)
+	fullTimeDisplay = string.format("%s%s%s%s%s%s%s",timeDisplay[1],timeDisplay[2],":",timeDisplay[3],timeDisplay[4]," ",AM_PMValues[fibaro:getGlobalValue("AM_PM")])
+	fibaro:call(thisDevice,"setProperty","ui.timeDisplay.value",fullTimeDisplay)
+
+C. AM/PM
+
+local thisDevice = fibaro:getSelfId();
+local buttonPress = "AM"
+local timeDisplay = fibaro:getGlobalValue("timeDisplay")
+local fullTimeDisplay = ""
+
+local AM_PMValues = {}
+AM_PMValues["0"] = ""
+AM_PMValues["AM"] = "AM"
+AM_PMValues["PM"] = "PM"
+
+fibaro:setGlobal('AM_PM',buttonPress)
+
+fullTimeDisplay = string.format("%s%s%s%s%s",timeDisplay:sub(1,2),":",timeDisplay:sub(3,4)," ",AM_PMValues[fibaro:getGlobalValue("AM_PM")])
+fibaro:call(thisDevice,"setProperty","ui.timeDisplay.value",fullTimeDisplay)
+
+
+D. Clear
+	
+local thisDevice = fibaro:getSelfId()
+fibaro:setGlobal('timeDisplay',"----")
+local timeDisplay = fibaro:getGlobalValue("timeDisplay")
+fibaro:setGlobal('AM_PM',"0")
+
+local AM_PMValues = {}
+AM_PMValues["0"] = ""
+AM_PMValues["AM"] = "AM"
+AM_PMValues["PM"] = "PM"
+
+fullTimeDisplay = string.format("%s%s%s%s%s",timeDisplay:sub(1,2),":",timeDisplay:sub(3,4)," ",AM_PMValues[fibaro:getGlobalValue("AM_PM")])
+fibaro:call(thisDevice,"setProperty","ui.timeDisplay.value",fullTimeDisplay)
+
+E. OK
+
+function refreshDisplay(deviceID)
+    fibaro:debug("refreshDisplay initiated")
+    local refreshedDisplay = fibaro:getGlobalValue("VD"..deviceID.."timeDisplay")
+    local AMPM = fibaro:getGlobalValue("VD"..deviceID.."AM_PM")
+    local AM_PMValues = {}
+    AM_PMValues["0"] = ""
+    AM_PMValues["AM"] = "AM"
+    AM_PMValues["PM"] = "PM"
+    local fullTimeDisplay = string.format("%s%s%s%s%s",refreshedDisplay:sub(1,2),":",refreshedDisplay:sub(3,4)," ",AM_PMValues[AMPM])
+    fibaro:call(deviceID,"setProperty","ui.timeDisplay.value",fullTimeDisplay)
+end
+
+
+fibaro:debug("Start")
+local thisDevice = fibaro:getSelfId()
+local timeDisplay = fibaro:getGlobalValue("VD"..thisDevice.."timeDisplay")
+local AM_PM = fibaro:getGlobalValue("VD"..thisDevice.."AM_PM")
+local AM_PMValues = {}
+AM_PMValues["0"] = ""
+AM_PMValues["AM"] = "AM"
+AM_PMValues["PM"] = "PM"
+
+if ((timeDisplay:sub(2,2) ~= "-") and (timeDisplay:sub(3,3) ~= "-") and (timeDisplay:sub(4,4) ~= "-")) then
+    if ((timeDisplay:sub(1,1) == "-") or (tonumber(timeDisplay:sub(1,1)) == 0) or (tonumber(timeDisplay:sub(1,1)) == 1)) then
+        flag1 = 1
+    end
+    if ((tonumber(timeDisplay:sub(2,2)) >= 0) and (tonumber(timeDisplay:sub(2,2)) <= 9)) then
+        flag2 = 1
+    end
+    if ((tonumber(timeDisplay:sub(3,3)) >= 0) and (tonumber(timeDisplay:sub(3,3)) <= 5)) then
+        flag3 = 1
+    end
+    if ((tonumber(timeDisplay:sub(4,4)) >= 0) and (tonumber(timeDisplay:sub(4,4)) <= 9)) then
+        flag4 = 1
+    end
+    if (tonumber(AM_PM) ~= 0) then
+        flag5 = 1
+    end
+
+    if (flag1 == 1 and flag2 == 1 and flag3 == 1 and flag4 == 1 and flag5 == 1) then
+        local hours = tonumber(timeDisplay:sub(1,2))
+        if hours < 0 then
+            hours = hours*(-1)
+            fibaro:debug("minus converted for "..hours)
+        end
+        local minutes = tonumber(timeDisplay:sub(3,4))
+        fibaro:debug("hours:"..hours.." minutes:"..minutes)
+        if (hours >= 10) then
+            timeDisplay = hours..minutes
+        else
+            timeDisplay = " "..hours..minutes
+        end
+        fibaro:setGlobal("VD"..thisDevice.."hours",hours)
+        fibaro:setGlobal("VD"..thisDevice.."minutes",minutes)
+        fibaro:setGlobal("VD"..thisDevice.."timeDisplay",timeDisplay)
+
+        local fullTimeDisplay = string.format("%s%s%s%s%s",timeDisplay:sub(1,2),":",timeDisplay:sub(3,4)," ",AM_PMValues[AM_PM])
+        fibaro:call(thisDevice,"setProperty","ui.timeDisplay.value",fullTimeDisplay)
+        fibaro:debug("timeDisplay updated to:"..fullTimeDisplay)
+    else
+        fibaro:setGlobal("VD"..thisDevice.."timeDisplay","----")
+        fibaro:call(thisDevice,"setProperty","ui.timeDisplay.value","Invalid time.")
+        fibaro:sleep(1000);  
+        refreshDisplay(thisDevice)
+    end
+else
+    fibaro:setGlobal("VD"..thisDevice.."timeDisplay","----")
+    fibaro:call(thisDevice,"setProperty","ui.timeDisplay.value","Invalid time.")
+    fibaro:sleep(1000);  
+    refreshDisplay(thisDevice)
+end
+
+
+
+
+
+***Example - Initialize global variables automatically
+
+if fibaro:getGlobalValue("Timer") == nil then
+    local HC2 = Net.FHttp("127.0.0.1",11111);
+    local response ,status, err = HC2:POST('/api/globalVariables','{"name":"Timer","value":"-1"}');
+    if (tonumber(status) == 200 and tonumber(err)==0) then
+      fibaro:debug("Global variable Timer created");
+    end
+end  
+
+
+Possible Displays:
+A. Status:
+	1. Active - 9:45 AM for 45 minutes on Mon,Tue,Thu
+	2. Inactive - 9:45 AM for 45 minutes on Mon,Tue,Thu
+	3. Inactive - 9:45 AM, set active days
+	4. Inactive - set time, Mon,Tue,Thu
+	5. Inactive - set time and days
+B. Days:
+	1. Mon,Tue,Wed,Thu,Fri,Sat,Sun
+	2. Mon,Tue,Thu
+	3. None
+
+C. Time
+	1. --:--
+	2. 
+
+C. Time (next version):
+	1. --:--
+	2. (pushes 9,4,5,9,OK,AM,OK) --:-9 | -9:-4 | -9:45 | -9:45 | 9:45 set AM/PM | 9:45 AM | 9:45 AM
+	3. 
+
+---9
+---4
+---4 -- can't put 9 in 3rd pos
+
+hh stores indices from  0,1,2 to 12 for --,1,2,3,...,12 in hhValues
+mm stores indices from -1,0,1 to 59 for --,00,01,02,03,...,59 in mmValues
+
+hhValues & mmValues are purely for display purposes.
+
+-------------------------- Changing device button labels ------------------
+--id of VD
+id = 105
+--contecting to HC2 to get VD who you want modify
+local HC2 = Net.FHttp("127.0.0.1", 11111)
+payload = "/api/virtualDevices/" .. id
+response, status, errorCode = HC2:GET(payload)
+if tonumber(errorCode) == 0 and tonumber(status) == 200 and response ~= nil and response ~= "" then
+	jsonTable = json.decode(response)
+--changening caption  
+  jsonTable.properties.rows[1].elements[1].caption="testazz"﻿
+--sending it back  
+  local response, status, errorCode = HC2:PUT(payload, json.encode(jsonTable))
+
+end
+---------------------------------------------------------------------------
+
+-------------------------- Initializing hhValues --------------------------
+local hhValues = {}
+hhValues[0] = "--"
+local i = 0
+local LSB = 0
+local MSB = 0
+for i = 1,12,1 do
+	hhValues[i] = i
+end
+------------------------------------------------
+
+-------------------------- Initializing mmValues --------------------------
+local mmValues = {}
+mmValues[-1] = "--"
+local i = 0
+local LSB = 0
+local MSB = 0
+for i = 0,59,1 do
+	MSB = (i-(i%10))/10
+	LSB = (i%10)
+	mmValues[i] = string.format("%s%s",MSB,LSB)
+end
+------------------------------------------------
+
+-------------------------- Initializing AM_PMValues --------------------------
+local AM_PMValues = {}
+AM_PMValues[0] = ""
+AM_PMValues[1] = "AM"
+AM_PMValues[2] = "PM"
+------------------------------------------------
+
+-------------------------- Initializing weekList --------------------------
+local weekList = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"}
+------------------------------------------------
+
+
+
+
+
+
+
+-9-4
+hhValues
+1. shift whatever possible on every press
+2. upon press of OK, convert them to local hours & minutes, then check if hours is b/w 1 & 12, and if minutes is between 0 and 59
+3. If 2 is true, set global hh & mm to these values, and display time based on hhValues & mmValues
+4. If AM/PM was pressed, display that as well, else display AM/PM? for a second, and revert to displaying time
+5. Once AM/PM is pressed followed by OK, display AM/PM as well, then add 12 to hours if it's PM (if necessary), and remove 12 if it's 12:00 AM to 12:59 AM
+6. Timer isn't started until enable timer is pressed, unless already enabled.
+
+Enable timer also checks if hh or mm don't contain nil values, and if a duration is set.
+Disable timer merely disables the timer.
+Clear timer sets AM/PM to nil, hh to 0, mm to -1.
+
+
+
+
+buttonPress = <value>
+tempTimeDisp = "----"
+temptimeDisp[4] = buttonPress
+if (timeDisp[4] is between 0 & 5), then
+	temptimeDisp[3] = timeDisp[4]
+elseif (timeDisp[4] is between 0 & 9) then
+	temptimeDisp[2] = timeDisp[4]
+elseif (time)
+
+String format -		timeDisp[1]..timeDisp[2]..:..timeDisp[3]..timeDisp[4]..<space>..[AM/PM]
+Init - 				Set string to ----, blank space
+
+
+**button pushes begin
+* each button pushes a number to a global string as follows - 
+	- pull global string, store it locally as timeDisp
+	- perform the following operations
+		- if timeDisp.sub(2,2)=="-" or (timeDisp.sub(2,2)>=0 and timeDisp.sub(2,2)<=1), then temptimeDisp.sub(1,1) = timeDisp.sub(2,2), set check1 = true
+		- if timeDisp.sub(3,3)=="-" or (timeDisp.sub(3,3)>=0 and timeDisp.sub(3,3)<=2), then temptimeDisp.sub(2,2) = timeDisp.sub(3,3), set check2 = true
+		- if timeDisp.sub(4,4)=="-" or (timeDisp.sub(4,4)>=0 and timeDisp.sub(4,4)<=5), then temptimeDisp.sub(3,3) = timeDisp.sub(4,4), set check3 = true
+		- temptimeDisp.sub(4,4) = button value
+		- all checks true? then dump it to timeDisp and then display it
+		- basically check validity of each number in its own place - 0-1,0-2(if first digit is 1)or 0-9(if first digit is 0 or -)
+	- set up another string for am/pm where 0=nil, 1=am, 2=pm, can be defined as AM_PM[0] = "", AM_PM[1] = "AM", AM_PM[2] = "PM"
+* upon press of OK
+	- translate disp. string into system global variables - hh & mm
+		- do some math to pull each digit and multiply+add them into proper hours and minutes
+		- display them properly on timeDisp (e.g. 9:45 PM)
+		- 
+
+
+Mini Objectives ----------------------------------
+
+1. If required globals aren't present, make them, and initialize them with default values.
+2. Every global variable will be automatically generated by the VD, for itself.
+	Ex. activeWeeks would be activeWeeks..fibaro:getSelfId()
+3. Change code in every button to address the VD's specific globals, since creation of their globals is already ensured in the main loop
+4. Change globals format from timeDisplay150 to 150timeDisplay
+
+Current Issues -----------------------------------
+
+1. Line 26 in OK has issues when it comes across strings like --45 or ---5 as they're being compared as nil ("-") values against 0 and whatever.
+2. AM and PM buttons are stored permanently. Solution - store it in the timeDisplay string, just like the rest of the time.
+Store it in timeDisplay as <hh><mm><0/1/2>, where 1 is AM, 2 is PM
+Change the AM/PM lookup index from 0/AM/PM to 0/1/2 in AM, PM, Clear and OK buttons
+Let clear button just clear timeDisplay only now. Change reset value from '----' to '----0'
+Pull AM/PM index from timeDisplay
+No need to change fullTimeDisplay; only the AM_PM index tables change
+
+
+Old Main Loop ------------------------------------
+
+local str = fibaro:getGlobal("Timer")
+local weekList = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"}
+local weekDisplay = ""
+local weekDisplayIndex = 1
+for i = 1,7,1
+do
+	fibaro:debug(i)
+  	if (str:sub(i,i) == "1")
+    then
+  		weekDisplay = weekDisplay .. weekList[i]
+    	if (i ~= 7)
+   		then
+  		weekDisplay = weekDisplay .. ", "
+    	weekDisplayIndex = weekDisplayIndex + 1
+    end
+    end
+  
+end
+fibaro:debug(weekDisplay)
+fibaro:call(150,"setProperty","ui.Status.value",weekDisplay)
+----------------------------------------------------
+
+
+Main Loop -------------------------------------------------------------------------------------------------------------
+
+thisDevice = fibaro:getSelfId()
+
+Make sure all globals are initialized -
+	timeDisplay
+	AM_PM
+	activeWeeks
+
+Use this example to implement this:
+	if fibaro:getGlobalValue("timeDisplay"..thisDevice) == nil then
+	    local HC2 = Net.FHttp("127.0.0.1",11111);
+	    local postMsg = '{"name":"timeDisplay'..thisDevice..'","value":"209"}'
+	    local response ,status, err = HC2:POST('/api/globalVariables',postMsg);
+	    if (tonumber(status) == 200 and tonumber(err)==0) then
+	      fibaro:debug("Global variable timeDisplay"..thisDevice.." created");
+	    end
+	end
+
+
+
+Check if timer is active
+Pull current date & time
+Check which days it's active on
+Check if it's active today
+Check if device is off, then check if timer ON time matches current time (down only to the minute) - if yes, turn the device on; break if possible
+Check if device is on, then calculate timer OFF time, then check if it matches current time (down only to the minute) - if yes, turn the device off; break if possible.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+NEW IDEAS - 
+
+Alternative display:
+
+Status: Active - 9:45 AM for 45 minutes on Mon,Tue,Thu
+-----------------------------------------
+Days:						Mon,Tue,Thu
+-----------------------------------------	
+		Mon		Tue		Wed		Thu
+			Fri		Sat		Sun
+-----------------------------------------
+ON Time:        					--:--
+-----------------------------------------
+OFF Time:							--:--
+-----------------------------------------
+									--:--
+-----------------------------------------
+			1		2		3
+
+			4		5		6
+
+			7		8		9
+
+			AM 		0	   PM
+
+			  Clear	    OK
+-----------------------------------------
+	Enable Timer 		Disable Timer
+				Reset Timer
+-----------------------------------------
